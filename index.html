@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1f2937">
+<meta name="description" content="Mobile table ordering system">
+<link rel="manifest" href="manifest.json">
+<title>Table Order</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f2f4f7;color:#222}
+header{background:#1f2937;color:#fff;padding:12px 15px;text-align:center;position:sticky;top:0;z-index:10}
+#companyHeader{font-size:27px;font-weight:700}#dateTime{font-size:14px;margin-top:5px}
+.container{max-width:1000px;margin:auto;padding:15px}.menu{display:flex;gap:7px;margin-bottom:15px}
+.menu button{flex:1;padding:12px 5px;border:0;border-radius:8px;background:#4b5563;color:#fff;font-size:14px}
+.menu button.active{background:#2563eb}.page{display:none}.page.active{display:block}.card{background:#fff;border-radius:12px;padding:18px;margin-bottom:15px;box-shadow:0 2px 8px #00000012}
+h2{margin-top:0}input{width:100%;padding:13px;border:1px solid #ccc;border-radius:7px;font-size:16px;margin:6px 0}
+.primary{width:100%;padding:13px;border:0;border-radius:7px;background:#2563eb;color:#fff;font-size:16px;font-weight:700}
+.green,.red,.orange,.gray{color:#fff;border:0;border-radius:7px;padding:10px 14px;cursor:pointer}
+.green{background:#16a34a}.red{background:#dc2626}.orange{background:#f59e0b}.gray{background:#6b7280}
+.tables-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.table-box{background:#fff;min-height:125px;border-radius:12px;border:3px solid #16a34a;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;text-align:center}
+.table-box.occupied{border-color:#f59e0b;background:#fff7ed}.table-number{font-size:22px;font-weight:700}.table-status{margin-top:7px;font-size:13px;font-weight:700}.table-total{margin-top:5px;font-size:14px}
+.order-buttons{display:flex;gap:8px;margin-bottom:15px}.order-buttons button{flex:1;padding:13px 5px;border:0;border-radius:7px;color:#fff;font-size:15px;font-weight:700}
+#availableItems{display:none}#availableItems.show{display:block}.available-item{display:flex;justify-content:space-between;align-items:center;padding:12px 5px;border-bottom:1px solid #ddd}
+.available-item-name{font-weight:700}.available-item-price{color:#555;margin-top:3px}.available-item button{background:#2563eb;color:#fff;border:0;border-radius:6px;padding:8px 13px}
+.order-row{display:flex;align-items:center;gap:8px;padding:13px 0;border-bottom:1px solid #ddd}.order-info{flex:1}.order-name{font-weight:700}.order-price{color:#666;font-size:14px;margin-top:3px}
+.qty{display:flex;align-items:center;gap:6px}.qty button{width:32px;height:32px;border:0;border-radius:6px;background:#374151;color:#fff;font-size:19px}.qty-number{min-width:25px;text-align:center;font-weight:700}
+.item-total{width:90px;text-align:right;font-weight:700}.cancel-item{background:#dc2626;color:#fff;border:0;border-radius:6px;padding:8px}
+.total-box{text-align:right;font-size:24px;font-weight:700;margin-top:15px;padding-top:15px;border-top:2px solid #222}
+.product-row{display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid #ddd;gap:10px}.product-info{flex:1}.product-name{font-weight:700}.product-price{color:#555;margin-top:3px}.product-buttons{display:flex;gap:5px}
+.setting-label{font-weight:700;margin-top:10px;display:block}.empty{text-align:center;color:#777;padding:25px}
+#slipOverlay{display:none;position:fixed;inset:0;background:#0009;z-index:1000;overflow-y:auto;padding:20px}.slip-window{background:#fff;max-width:420px;margin:auto;padding:25px;border-radius:8px}
+.slip-company{text-align:center;font-size:25px;font-weight:700;margin-bottom:10px}.slip-title{text-align:center;font-size:20px;font-weight:700;margin-bottom:15px}
+.slip-info{font-size:14px;line-height:1.7;border-bottom:1px dashed #777;padding-bottom:10px}.slip-table{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}
+.slip-table th,.slip-table td{padding:7px 3px;border-bottom:1px solid #ddd}.slip-table th{text-align:left}.slip-table .right{text-align:right}.slip-total{text-align:right;font-size:20px;font-weight:700;margin-top:15px}
+.slip-buttons{display:flex;gap:8px;margin-top:20px}.slip-buttons button{flex:1}
+@media print{body *{visibility:hidden}#slipOverlay,#slipOverlay *{visibility:visible}#slipOverlay{position:absolute;left:0;top:0;background:#fff;padding:0}.slip-window{box-shadow:none;width:100%;max-width:420px}.slip-buttons{display:none}}
+@media(max-width:650px){.tables-grid{grid-template-columns:repeat(2,1fr)}.order-row{flex-wrap:wrap}.item-total{width:auto}.product-row{align-items:flex-start;flex-direction:column}.product-buttons{width:100%}.product-buttons button{flex:1}}
+</style>
+</head>
+<body>
+<header><div id="companyHeader">My Company</div><div id="dateTime">Loading...</div></header>
+<div class="container">
+<div class="menu">
+<button id="tablesMenu" class="active" onclick="showPage('tablesPage')">Tables</button>
+<button id="itemsMenu" onclick="showPage('itemsPage')">Food & Drinks</button>
+<button id="settingsMenu" onclick="showPage('settingsPage')">Settings</button>
+</div>
+
+<div id="tablesPage" class="page active">
+<div class="card"><h2>Create Table</h2><input id="tableNumber" placeholder="Enter table number"><button class="primary" onclick="createTable()">+ Create Table</button></div>
+<div class="card"><h2>Tables</h2><div id="tablesGrid" class="tables-grid"></div></div>
+</div>
+
+<div id="orderPage" class="page">
+<button class="gray" onclick="backToTables()">← Back to Tables</button>
+<div class="card">
+<h2 id="selectedTableTitle">Table</h2>
+<div class="order-buttons">
+<button style="background:#16a34a" onclick="toggleAvailableItems()">+ Add Order</button>
+<button style="background:#dc2626" onclick="cancelAllOrders()">Cancel</button>
+</div>
+<div id="availableItems"><h3>Food & Drinks</h3><div id="availableItemsList"></div></div>
+<h3>Current Order</h3><div id="currentOrder"></div>
+<div class="total-box">Total: MVR <span id="orderTotal">0.00</span></div>
+<div class="order-buttons" style="margin-top:20px">
+<button style="background:#2563eb" onclick="createSlip()">🧾 Create Slip</button>
+<button style="background:#16a34a" onclick="markPaid()">✓ Paid</button>
+</div>
+</div>
+</div>
+
+<div id="itemsPage" class="page">
+<div class="card"><h2>Add Food / Drink</h2><input id="itemName" placeholder="Food or drink name"><input id="itemPrice" type="number" placeholder="Selling price (MVR)" min="0" step="0.01"><button class="primary" onclick="addProduct()">+ Add Food / Drink</button></div>
+<div class="card"><h2>Available Items</h2><div id="productsList"></div></div>
+</div>
+
+<div id="settingsPage" class="page">
+<div class="card"><h2>Settings</h2><label class="setting-label">Company Name</label><input id="companyNameInput" placeholder="Enter company name"><button class="primary" onclick="saveCompanyName()">Save Company Name</button></div>
+<div class="card"><h3>Date & Time</h3><p>Date and time are automatically taken from the device.</p></div>
+</div>
+</div>
+
+<div id="slipOverlay">
+<div class="slip-window">
+<div class="slip-company" id="slipCompany"></div><div class="slip-title">CUSTOMER SLIP</div><div class="slip-info" id="slipInfo"></div>
+<table class="slip-table"><thead><tr><th>Item</th><th>Qty</th><th class="right">Price</th><th class="right">Total</th></tr></thead><tbody id="slipItems"></tbody></table>
+<div class="slip-total" id="slipTotal"></div>
+<div class="slip-buttons"><button class="gray" onclick="closeSlip()">Close</button><button class="primary" onclick="printSlip()">🖨 Print</button></div>
+</div>
+</div>
+
+<script>
+let tables=JSON.parse(localStorage.getItem("tables")||"[]");
+let products=JSON.parse(localStorage.getItem("products")||"[]");
+let orders=JSON.parse(localStorage.getItem("orders")||"{}");
+let companyName=localStorage.getItem("companyName")||"My Company";
+let invoiceNumber=parseInt(localStorage.getItem("invoiceNumber")||"1000");
+let selectedTable=null;
+
+function saveData(){
+localStorage.setItem("tables",JSON.stringify(tables));
+localStorage.setItem("products",JSON.stringify(products));
+localStorage.setItem("orders",JSON.stringify(orders));
+localStorage.setItem("companyName",companyName);
+localStorage.setItem("invoiceNumber",invoiceNumber);
+}
+function updateDateTime(){
+const n=new Date();
+document.getElementById("dateTime").textContent=n.toLocaleDateString(undefined,{year:"numeric",month:"long",day:"numeric"})+" | "+n.toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+}
+setInterval(updateDateTime,1000);updateDateTime();
+function updateCompanyName(){document.getElementById("companyHeader").textContent=companyName}
+function saveCompanyName(){
+const n=document.getElementById("companyNameInput").value.trim();
+if(!n)return alert("Please enter company name.");
+companyName=n;saveData();updateCompanyName();alert("Company name saved.");
+}
+function showPage(id){
+document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+document.getElementById(id).classList.add("active");
+document.querySelectorAll(".menu button").forEach(b=>b.classList.remove("active"));
+if(id==="tablesPage"){document.getElementById("tablesMenu").classList.add("active");renderTables()}
+if(id==="itemsPage"){document.getElementById("itemsMenu").classList.add("active");renderProducts()}
+if(id==="settingsPage"){document.getElementById("settingsMenu").classList.add("active");document.getElementById("companyNameInput").value=companyName}
+}
+function createTable(){
+const input=document.getElementById("tableNumber"),number=input.value.trim();
+if(!number)return alert("Please enter a table number.");
+if(tables.some(t=>t.number.toLowerCase()===number.toLowerCase()))return alert("This table already exists.");
+tables.push({id:Date.now(),number});saveData();input.value="";renderTables();
+}
+function renderTables(){
+const grid=document.getElementById("tablesGrid");grid.innerHTML="";
+if(!tables.length){grid.innerHTML='<div class="empty">No tables created yet.</div>';return}
+tables.forEach(t=>{
+const box=document.createElement("div");box.className="table-box";const os=orders[t.id]||[];let total=0;
+os.forEach(i=>total+=i.price*i.quantity);if(os.length)box.classList.add("occupied");
+box.innerHTML=`<div class="table-number">Table ${escapeHTML(t.number)}</div><div class="table-status">${os.length?"ORDER ACTIVE":"EMPTY"}</div>${total?`<div class="table-total">MVR ${total.toFixed(2)}</div>`:""}`;
+box.onclick=()=>openTable(t.id);grid.appendChild(box);
+});
+}
+function openTable(id){
+selectedTable=id;const t=tables.find(x=>x.id===id);document.getElementById("selectedTableTitle").textContent="Table "+t.number;
+document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));document.getElementById("orderPage").classList.add("active");
+document.getElementById("availableItems").classList.remove("show");renderCurrentOrder();
+}
+function backToTables(){selectedTable=null;showPage("tablesPage")}
+function toggleAvailableItems(){const b=document.getElementById("availableItems");b.classList.toggle("show");renderAvailableItems()}
+function renderAvailableItems(){
+const c=document.getElementById("availableItemsList");c.innerHTML="";
+if(!products.length){c.innerHTML='<div class="empty">No food or drinks available. Add them from Food & Drinks.</div>';return}
+products.forEach(p=>{const r=document.createElement("div");r.className="available-item";r.innerHTML=`<div><div class="available-item-name">${escapeHTML(p.name)}</div><div class="available-item-price">MVR ${p.price.toFixed(2)}</div></div><button onclick="addOrder(${p.id})">Add</button>`;c.appendChild(r)})
+}
+function addOrder(pid){
+if(selectedTable===null)return;const p=products.find(x=>x.id===pid);if(!p)return;if(!orders[selectedTable])orders[selectedTable]=[];
+const e=orders[selectedTable].find(x=>x.productId===pid);
+if(e)e.quantity++;else orders[selectedTable].push({productId:p.id,name:p.name,price:p.price,quantity:1});
+saveData();renderCurrentOrder();renderTables();
+}
+function renderCurrentOrder(){
+const c=document.getElementById("currentOrder");c.innerHTML="";const os=orders[selectedTable]||[];
+if(!os.length){c.innerHTML='<div class="empty">No orders yet.</div>';document.getElementById("orderTotal").textContent="0.00";return}
+let total=0;
+os.forEach((i,idx)=>{const it=i.price*i.quantity;total+=it;const r=document.createElement("div");r.className="order-row";r.innerHTML=`<div class="order-info"><div class="order-name">${escapeHTML(i.name)}</div><div class="order-price">MVR ${i.price.toFixed(2)}</div></div><div class="qty"><button onclick="decreaseQuantity(${idx})">−</button><div class="qty-number">${i.quantity}</div><button onclick="increaseQuantity(${idx})">+</button></div><div class="item-total">MVR ${it.toFixed(2)}</div><button class="cancel-item" onclick="removeOrder(${idx})">Cancel</button>`;c.appendChild(r)});
+document.getElementById("orderTotal").textContent=total.toFixed(2);
+}
+function increaseQuantity(i){orders[selectedTable][i].quantity++;saveData();renderCurrentOrder();renderTables()}
+function decreaseQuantity(i){const x=orders[selectedTable][i];x.quantity--;if(x.quantity<=0)orders[selectedTable].splice(i,1);saveData();renderCurrentOrder();renderTables()}
+function removeOrder(i){orders[selectedTable].splice(i,1);saveData();renderCurrentOrder();renderTables()}
+function cancelAllOrders(){
+if(!orders[selectedTable]?.length)return;if(confirm("Cancel all orders for this table?")){orders[selectedTable]=[];saveData();renderCurrentOrder();renderTables()}
+}
+function addProduct(){
+const n=document.getElementById("itemName").value.trim(),p=parseFloat(document.getElementById("itemPrice").value);
+if(!n)return alert("Please enter the food or drink name.");if(isNaN(p)||p<0)return alert("Please enter a valid selling price.");
+products.push({id:Date.now(),name:n,price:p});saveData();document.getElementById("itemName").value="";document.getElementById("itemPrice").value="";renderProducts();
+}
+function renderProducts(){
+const c=document.getElementById("productsList");c.innerHTML="";if(!products.length){c.innerHTML='<div class="empty">No food or drinks added yet.</div>';return}
+products.forEach(p=>{const r=document.createElement("div");r.className="product-row";r.innerHTML=`<div class="product-info"><div class="product-name">${escapeHTML(p.name)}</div><div class="product-price">MVR ${p.price.toFixed(2)}</div></div><div class="product-buttons"><button class="orange" onclick="editProduct(${p.id})">Edit</button><button class="red" onclick="deleteProduct(${p.id})">Delete</button></div>`;c.appendChild(r)})
+}
+function editProduct(id){
+const p=products.find(x=>x.id===id);if(!p)return;const n=prompt("Food / Drink name:",p.name);if(n===null)return;const v=prompt("Selling price:",p.price);if(v===null)return;const price=parseFloat(v);if(!n.trim()||isNaN(price)||price<0)return alert("Invalid information.");p.name=n.trim();p.price=price;saveData();renderProducts();
+}
+function deleteProduct(id){const p=products.find(x=>x.id===id);if(!p)return;if(confirm("Delete "+p.name+"?")){products=products.filter(x=>x.id!==id);saveData();renderProducts()}}
+function createSlip(){
+if(selectedTable===null)return alert("Please select a table.");const t=tables.find(x=>x.id===selectedTable),os=orders[selectedTable]||[];if(!os.length)return alert("There are no orders for this table.");
+invoiceNumber++;saveData();const n=new Date();const date=n.toLocaleDateString(undefined,{year:"numeric",month:"long",day:"numeric"}),time=n.toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+document.getElementById("slipCompany").textContent=companyName;document.getElementById("slipInfo").innerHTML=`<strong>Invoice:</strong> INV-${invoiceNumber}<br><strong>Table:</strong> ${escapeHTML(t.number)}<br><strong>Date:</strong> ${date}<br><strong>Time:</strong> ${time}`;
+const b=document.getElementById("slipItems");b.innerHTML="";let total=0;
+os.forEach(i=>{const it=i.price*i.quantity;total+=it;const r=document.createElement("tr");r.innerHTML=`<td>${escapeHTML(i.name)}</td><td>${i.quantity}</td><td class="right">${i.price.toFixed(2)}</td><td class="right">${it.toFixed(2)}</td>`;b.appendChild(r)});
+document.getElementById("slipTotal").textContent="TOTAL: MVR "+total.toFixed(2);document.getElementById("slipOverlay").style.display="block";
+}
+function closeSlip(){document.getElementById("slipOverlay").style.display="none"}function printSlip(){window.print()}
+function markPaid(){
+if(selectedTable===null)return alert("Please select a table.");const os=orders[selectedTable]||[];if(!os.length)return alert("There is no order to pay.");
+let total=0;os.forEach(i=>total+=i.price*i.quantity);if(!confirm("Payment received?\n\nTotal: MVR "+total.toFixed(2)))return;
+orders[selectedTable]=[];saveData();closeSlip();alert("Payment completed. Table is now available.");renderCurrentOrder();renderTables();
+}
+function escapeHTML(text){const d=document.createElement("div");d.textContent=text;return d.innerHTML}
+updateCompanyName();renderTables();
+if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("service-worker.js").catch(()=>{}));
+</script>
+</body>
+</html>
